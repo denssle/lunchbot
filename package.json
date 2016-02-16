@@ -1,0 +1,28 @@
+{
+  "name": "lunchbot",
+  "version": "1.0.0",
+  "description": "A friendly robot that manages you and your team to get lunch in no time.",
+  "main": "bot.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/innoq/lunchbot.git"
+  },
+  "keywords": [
+    "bot",
+    "botkit",
+    "slack",
+    "lunch"
+  ],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/innoq/lunchbot/issues"
+  },
+  "homepage": "https://github.com/innoq/lunchbot#readme",
+  "dependencies": {
+    "botkit": "0.0.7"
+  }
+}
