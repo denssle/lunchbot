@@ -8,14 +8,7 @@
 
 This is a sample Slack bot built with Botkit.
 
-This bot demonstrates many of the core features of Botkit:
-
-* Connect to Slack using the real time API
-* Receive messages based on "spoken" patterns
-* Reply to messages
-* Use the conversation system to ask questions
-* Use the built in storage system to store and retrieve information
-  for a user.
+This bot demonstrates a multi-stage conversation
 
 # RUN THE BOT:
 
@@ -25,33 +18,29 @@ This bot demonstrates many of the core features of Botkit:
 
   Run your bot from the command line:
 
-    token=<MY TOKEN> node bot.js
+    token=<MY TOKEN> node demo_bot.js
 
 # USE THE BOT:
 
-  Find your bot inside Slack to send it a direct message.
+  Find your bot inside Slack
 
-  Say: "Hello"
+  Say: "pizzatime"
 
-  The bot will reply "Hello!"
+  The bot will reply "What flavor of pizza do you want?"
 
-  Say: "who are you?"
+  Say what flavor you want.
 
-  The bot will tell you its name, where it running, and for how long.
+  The bot will reply "Awesome" "What size do you want?"
 
-  Say: "Call me <nickname>"
+  Say what size you want.
 
-  Tell the bot your nickname. Now you are friends.
+  The bot will reply "Ok." "So where do you want it delivered?"
 
-  Say: "who am I?"
+  Say where you want it delivered.
 
-  The bot will tell you your nickname, if it knows one for you.
+  The bot will reply "Ok! Good by."
 
-  Say: "shutdown"
-
-  The bot will ask if you are sure, and then shut itself down.
-
-  Make sure to invite your bot into other channels using /invite @<my bot>!
+  ...and will refrain from billing your card because this is just a demo :P
 
 # EXTEND THE BOT:
 
@@ -63,125 +52,46 @@ This bot demonstrates many of the core features of Botkit:
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
+var Botkit = require('./node_modules/botkit/lib/Botkit.js');
 
 if (!process.env.token) {
-    console.log('Error: Specify token in environment');
-    process.exit(1);
+  console.log('Error: Specify token in environment');
+  process.exit(1);
 }
 
-var Botkit = require('./node_modules/botkit/lib/Botkit.js');
-var os = require('os');
-
 var controller = Botkit.slackbot({
-    debug: true,
+ debug: false
 });
 
-var bot = controller.spawn({
-    token: process.env.token
-}).startRTM();
-
-
-controller.hears(['hello','hi'],'direct_message,direct_mention,mention',function(bot, message) {
-
-    bot.api.reactions.add({
-        timestamp: message.ts,
-        channel: message.channel,
-        name: 'robot_face',
-    },function(err, res) {
-        if (err) {
-            bot.botkit.log('Failed to add emoji reaction :(',err);
-        }
-    });
-
-
-    controller.storage.users.get(message.user,function(err, user) {
-        if (user && user.name) {
-            bot.reply(message,'Hello ' + user.name + '!!');
-        } else {
-            bot.reply(message,'Hello.');
-        }
-    });
+controller.spawn({
+  token: process.env.token
+}).startRTM(function(err) {
+  if (err) {
+    throw new Error(err);
+  }
 });
 
-controller.hears(['call me (.*)'],'direct_message,direct_mention,mention',function(bot, message) {
-    var matches = message.text.match(/call me (.*)/i);
-    var name = matches[1];
-    controller.storage.users.get(message.user,function(err, user) {
-        if (!user) {
-            user = {
-                id: message.user,
-            };
-        }
-        user.name = name;
-        controller.storage.users.save(user,function(err, id) {
-            bot.reply(message,'Got it. I will call you ' + user.name + ' from now on.');
-        });
-    });
+controller.hears(['pizzatime'],['ambient'],function(bot,message) {
+  bot.startConversation(message, askFlavor);
 });
 
-controller.hears(['what is my name','who am i'],'direct_message,direct_mention,mention',function(bot, message) {
-
-    controller.storage.users.get(message.user,function(err, user) {
-        if (user && user.name) {
-            bot.reply(message,'Your name is ' + user.name);
-        } else {
-            bot.reply(message,'I don\'t know yet!');
-        }
-    });
-});
-
-
-controller.hears(['shutdown'],'direct_message,direct_mention,mention',function(bot, message) {
-
-    bot.startConversation(message,function(err, convo) {
-
-        convo.ask('Are you sure you want me to shutdown?',[
-            {
-                pattern: bot.utterances.yes,
-                callback: function(response, convo) {
-                    convo.say('Bye!');
-                    convo.next();
-                    setTimeout(function() {
-                        process.exit();
-                    },3000);
-                }
-            },
-        {
-            pattern: bot.utterances.no,
-            default: true,
-            callback: function(response, convo) {
-                convo.say('*Phew!*');
-                convo.next();
-            }
-        }
-        ]);
-    });
-});
-
-
-controller.hears(['uptime','identify yourself','who are you','what is your name'],'direct_message,direct_mention,mention',function(bot, message) {
-
-    var hostname = os.hostname();
-    var uptime = formatUptime(process.uptime());
-
-    bot.reply(message,':robot_face: I am a bot named <@' + bot.identity.name + '>. I have been running for ' + uptime + ' on ' + hostname + '.');
-
-});
-
-function formatUptime(uptime) {
-    var unit = 'second';
-    if (uptime > 60) {
-        uptime = uptime / 60;
-        unit = 'minute';
-    }
-    if (uptime > 60) {
-        uptime = uptime / 60;
-        unit = 'hour';
-    }
-    if (uptime != 1) {
-        unit = unit + 's';
-    }
-
-    uptime = uptime + ' ' + unit;
-    return uptime;
+askFlavor = function(response, convo) {
+  convo.ask("What flavor of pizza do you want?", function(response, convo) {
+    convo.say("Awesome.");
+    askSize(response, convo);
+    convo.next();
+  });
+}
+askSize = function(response, convo) {
+  convo.ask("What size do you want?", function(response, convo) {
+    convo.say("Ok.")
+    askWhereDeliver(response, convo);
+    convo.next();
+  });
+}
+askWhereDeliver = function(response, convo) {
+  convo.ask("So where do you want it delivered?", function(response, convo) {
+    convo.say("Ok! Good by.");
+    convo.next();
+  });
 }
